@@ -6,8 +6,7 @@ const io = require("socket.io")(server, { cors: { origin: "*" } });
 let strokes = [];   // all drawn strokes
 let undone = [];    // undone strokes for redo
 
-// Serve static files (index.html, etc.)
-app.use(express.static(__dirname));
+app.use(express.static("public"));
 
 io.on("connection", (socket) => {
   console.log("New player connected:", socket.id);
@@ -55,8 +54,7 @@ io.on("connection", (socket) => {
 });
 
 // Listen on all interfaces so phone can connect
-const PORT = 3000;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running! Open on PC: http://localhost:${PORT}`);
-  console.log(`Or on phone: http://192.168.11.54:${PORT}`);
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
