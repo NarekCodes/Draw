@@ -45,7 +45,8 @@
   </div>
   <div id="chatBox"></div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-..." crossorigin="anonymous"></script>
+  <!-- Only CDN version for socket.io -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     const canvas = document.getElementById("board");
     const ctx = canvas.getContext("2d");
@@ -63,16 +64,15 @@
     const chatBox = document.getElementById("chatBox");
     const sendMsg = document.getElementById("sendMsg");
 
-    const socket = io();
+    const socket = io();  // connects automatically to the Render server
     let strokes = [];
     let undone = [];
     let username = "";
 
-    // Chat with username prompt
     sendMsg.addEventListener("click", () => {
       if (!username) {
         username = prompt("Enter your username:");
-        if (!username) return; // cancel if empty
+        if (!username) return;
       }
       const msg = chatInput.value.trim();
       if (!msg) return;
@@ -82,16 +82,12 @@
 
     socket.on("chat", (data) => {
       const p = document.createElement("p");
-      if (typeof data === "string") {
-        p.textContent = data;
-      } else {
-        p.textContent = `${data.username}: ${data.message}`;
-      }
+      if (typeof data === "string") p.textContent = data;
+      else p.textContent = `${data.username}: ${data.message}`;
       chatBox.appendChild(p);
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    // Canvas resize
     function resize() {
       const toolbarHeight = document.querySelector('.toolbar').offsetHeight;
       const chatHeight = 120;
@@ -105,18 +101,14 @@
     window.addEventListener("resize", resize);
     resize();
 
-    // Drawing logic
     let drawing = false;
     let last = null;
 
     function getPos(e){
+      const r = canvas.getBoundingClientRect();
       if(e.touches && e.touches[0]){
-        const r = canvas.getBoundingClientRect();
         return {x:e.touches[0].clientX - r.left, y:e.touches[0].clientY - r.top};
-      } else {
-        const r = canvas.getBoundingClientRect();
-        return {x:e.clientX - r.left, y:e.clientY - r.top};
-      }
+      } else return {x:e.clientX - r.left, y:e.clientY - r.top};
     }
 
     function drawLine(x0,y0,x1,y1,color,size,type){
@@ -136,9 +128,8 @@
       if(!drawing) return; e.preventDefault();
       const now = getPos(e);
       drawLine(last.x,last.y,now.x,now.y,colorEl.value,+sizeEl.value,brushTypeEl.value);
-      const data = {a:toNorm(last),b:toNorm(now),color:colorEl.value,size:+sizeEl.value,type:brushTypeEl.value};
-      strokes.push(data);
-      socket.emit("drawing",data);
+      strokes.push({a:toNorm(last),b:toNorm(now),color:colorEl.value,size:+sizeEl.value,type:brushTypeEl.value});
+      socket.emit("drawing", strokes[strokes.length-1]);
       last=now;
     }
     function end(e){ drawing=false; last=null; }
@@ -152,15 +143,13 @@
 
     function redraw(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#ffffff";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
       for(const s of strokes){
         const a=fromNorm(s.a), b=fromNorm(s.b);
         drawLine(a.x,a.y,b.x,b.y,s.color,s.size,s.type);
       }
     }
 
-    // Undo/Redo
     undoEl.addEventListener("click",()=>{ if(strokes.length>0){ undone.push(strokes.pop()); redraw(); socket.emit("undo"); }});
     redoEl.addEventListener("click",()=>{ if(undone.length>0){ strokes.push(undone.pop()); redraw(); socket.emit("redo"); }});
 
@@ -175,8 +164,7 @@
     replayEl.addEventListener("click",()=>{
       if(strokes.length===0) return;
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#ffffff";
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
       let i=0;
       const interval=setInterval(()=>{
         const s=strokes[i];
@@ -187,16 +175,12 @@
       },50);
     });
 
-    // Mobile chat handling
     chatInput.addEventListener("focus",()=>{ canvas.style.pointerEvents="none"; });
     chatInput.addEventListener("blur",()=>{ canvas.style.pointerEvents="auto"; });
 
-    // Connection status
     socket.on("connect",()=>{ statusEl.textContent="🟢 Connected"; });
     socket.on("disconnect",()=>{ statusEl.textContent="🔴 Disconnected"; });
-
     socket.on("loadStrokes",(arr)=>{ strokes=arr.slice(); redraw(); });
   </script>
 </body>
 </html>
-
